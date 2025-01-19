@@ -1,3 +1,4 @@
+use tokio_stream::wrappers::TcpListenerStream;
 use tonic::{transport::Server, Request, Response, Status};
 use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
@@ -41,17 +42,35 @@ impl Greeter for MyGreeter {
     }
 }
 
+fn get_available_port() -> u16 {
+    std::net::TcpListener::bind("0.0.0.0:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse().unwrap();
+
+    // 方式 1 先获取空闲的端口，再拼接 addr 地址，后再使用 serve绑定
+    // 缺点，server绑定时，也会再执行一次 tcplicense，判断端口是否空闲，再绑定，多一次消耗
+    // let addr = format!("[::1]:{}", get_available_port()).parse().unwrap();
+    // let tcp = std::net::TcpListener::bind("0.0.0.0:0").unwrap().incoming();
     let greeter = MyGreeter::default();
 
-    println!("GreeterServer listening on {}", addr);
+    // 方式 2 通过tokio TcpListener 动态绑定
+    // 缺点 多引入tokio-stream 库，还没有判定启动性能差异
+    let listener = tokio::net::TcpListener::bind("[::1]:0").await?;
+
+    println!("GreeterServer listening on {}", listener.local_addr()?.port());
+
+    let incommint = TcpListenerStream::new(listener);
 
     Server::builder()
-        .add_service(GreeterServer::new(greeter))
-        .serve(addr)
-        .await?;
+    .add_service(GreeterServer::new(greeter))
+    .serve_with_incoming(incommint)
+    .await?;
 
     Ok(())
 }
