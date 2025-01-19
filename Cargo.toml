@@ -1,0 +1,20 @@
+[package]
+name = "grpc-test"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]] # 用来运行 HelloWorld gRPC 服务器的可执行文件
+name = "helloworld-server"
+path = "src/server.rs"
+
+[[bin]] # 用来运行 HelloWorld gRPC 客户端的可执行文件
+name = "helloworld-client"
+path = "src/client.rs"
+
+[dependencies]
+tonic = "0.12"
+tokio = {version = "1", features = ["rt-multi-thread", "macros"]}
+prost = "0.13"
+
+[build-dependencies]
+tonic-build = {version = "0.12", features = ["prost"]}
